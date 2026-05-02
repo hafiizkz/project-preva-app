@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "673282327541",
+    "project_id": "preva-app",
+    "storage_bucket": "preva-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:673282327541:android:a300a37f309fba371f96bc",
+        "android_client_info": {
+          "package_name": "com.example.preva_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPOc2PECV5QDN6tZHjudWjbpzSnVTQ9Ds"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
