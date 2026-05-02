@@ -6,6 +6,7 @@ import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/post_card.dart';
 import '../../services/firestore_service.dart';
+import '../notification/notification_screen.dart'; // Import layar baru
 import '../post/add_post_screen.dart';
 import '../post/detail_post_screen.dart';
 
@@ -32,8 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadUserProfile() async {
     try {
-      final uid = _auth.currentUser!.uid;
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_auth.currentUser!.uid).get();
       if (doc.exists && mounted) {
         UserModel user = UserModel.fromMap(doc.data()!);
         setState(() {
@@ -43,7 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      debugPrint("Gagal memuat profil: $e");
+      debugPrint("Error: $e");
     }
   }
 
@@ -53,26 +53,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Preva Dashboard", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Preva App", style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          // TOMBOL NOTIFIKASI
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen()));
+            },
+          ),
+          const SizedBox(width: 5),
           Padding(
             padding: const EdgeInsets.only(right: 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  _name,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
-                ),
+                Text(_name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
                 Text(
                   _role.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10, 
-                    fontWeight: FontWeight.w900, 
-                    // FIX: Ubah ke Biru Tua di Light Mode agar tidak nyaru
-                    color: isDark ? Colors.lightBlueAccent : Colors.blue.shade900,
-                  ),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade900),
                 ),
               ],
             ),
@@ -93,14 +93,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         stream: _service.getPosts(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada laporan maintenance."));
+          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada laporan."));
 
-          final posts = snapshot.data!;
           return ListView.builder(
             padding: const EdgeInsets.all(12),
-            itemCount: posts.length,
+            itemCount: snapshot.data!.length,
             itemBuilder: (context, index) {
-              final post = posts[index];
+              final post = snapshot.data![index];
               return PostCard(
                 post: post,
                 isAdmin: _role == "admin", 
