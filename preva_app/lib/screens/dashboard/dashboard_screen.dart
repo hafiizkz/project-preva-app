@@ -6,7 +6,7 @@ import '../../models/post_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/post_card.dart';
 import '../../services/firestore_service.dart';
-import '../notification/notification_screen.dart'; // Import layar baru
+import '../notification/notification_screen.dart'; 
 import '../post/add_post_screen.dart';
 import '../post/detail_post_screen.dart';
 
@@ -20,6 +20,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final FirestoreService _service = FirestoreService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
 
   String _name = "Memuat...";
   String _role = "User";
@@ -53,11 +56,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Preva App", style: TextStyle(fontWeight: FontWeight.bold)),
+        // GANTI TULISAN DENGAN LOGO DI SINI
+        title: Image.asset(
+          'lib/img/logo2.png',
+          height: 40, // Tinggi disesuaikan agar pas di bar atas
+          fit: BoxFit.contain,
+        ),
         actions: [
-          // TOMBOL NOTIFIKASI
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+            icon: const Icon(Icons.notifications_none_rounded, color: Colors.lightBlueAccent),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen()));
             },
@@ -69,10 +76,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(_name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(_name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
                 Text(
                   _role.toUpperCase(),
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: isDark ? Colors.lightBlueAccent : Colors.blue.shade900),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.lightBlueAccent),
                 ),
               ],
             ),
@@ -89,27 +96,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<PostModel>>(
-        stream: _service.getPosts(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada laporan."));
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: "Cari laporan maintenance...",
+                prefixIcon: const Icon(Icons.search, color: Colors.lightBlueAccent),
+                filled: true,
+                fillColor: isDark ? Colors.white10 : Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: snapshot.data!.length,
-            itemBuilder: (context, index) {
-              final post = snapshot.data![index];
-              return PostCard(
-                post: post,
-                isAdmin: _role == "admin", 
-                isOwner: post.userId == _auth.currentUser!.uid,
-                onDelete: () => _service.deletePost(post.id),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailPostScreen(post: post))),
-              );
-            },
-          );
-        },
+          Expanded(
+            child: StreamBuilder<List<PostModel>>(
+              stream: _service.getPosts(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada laporan."));
+
+                final filteredPosts = snapshot.data!.where((post) {
+                  return post.title.toLowerCase().contains(_searchQuery);
+                }).toList();
+
+                if (filteredPosts.isEmpty) {
+                  return const Center(child: Text("Laporan tidak ditemukan."));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: filteredPosts.length,
+                  itemBuilder: (context, index) {
+                    final post = filteredPosts[index];
+                    return PostCard(
+                      post: post,
+                      isAdmin: _role == "admin", 
+                      isOwner: post.userId == _auth.currentUser!.uid,
+                      onDelete: () => _service.deletePost(post.id),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailPostScreen(post: post))),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddPostScreen())),

@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart'; 
 import '../../models/post_model.dart';
-import '../../services/firestore_service.dart';
+import '../../services/auth_service.dart';
 
 class DetailPostScreen extends StatefulWidget {
   final PostModel post;
@@ -14,171 +16,387 @@ class DetailPostScreen extends StatefulWidget {
 }
 
 class _DetailPostScreenState extends State<DetailPostScreen> {
-  final FirestoreService _service = FirestoreService();
-  final String _uid = FirebaseAuth.instance.currentUser!.uid;
+  final AuthService _authService = AuthService();
+  final _auth = FirebaseAuth.instance;
+  final _commentController = TextEditingController();
+  late bool _isFavorited;
 
-  // Membuka Google Maps menggunakan koordinat dari Database
+  @override
+  void initState() {
+    super.initState();
+    _isFavorited = widget.post.favorites.contains(_auth.currentUser!.uid);
+  }
+
   Future<void> _launchMaps() async {
     final url = 'https://www.google.com/maps/search/?api=1&query=${widget.post.latitude},${widget.post.longitude}';
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal membuka Maps")));
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
+  }
+
+  // FUNGSI: Kirim Komentar & Kirim Notifikasi
+  void _sendComment() async {
+    if (_commentController.text.trim().isEmpty) return;
+    
+    final user = _auth.currentUser!;
+    final userDoc = await _authService.getUserData(user.uid);
+    final userData = userDoc.data();
+
+    final String userName = userData?['name'] ?? "User";
+    final String userProfilePic = userData?['profilePic'] ?? "";
+    final String commentText = _commentController.text.trim();
+
+    final commentData = {
+      'userId': user.uid,
+      'userName': userName,
+      'userProfilePic': userProfilePic,
+      'comment': commentText,
+      'timestamp': FieldValue.serverTimestamp(),
+    };
+
+    // 1. Tambah Komentar ke Postingan
+    await FirebaseFirestore.instance
+        .collection('posts')
+        .doc(widget.post.id)
+        .collection('comments')
+        .add(commentData);
+
+    // 2. Kirim Notifikasi ke pemilik postingan (jika bukan diri sendiri)
+    if (widget.post.userId != user.uid) {
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'toUserId': widget.post.userId,
+        'fromUserId': user.uid,
+        'fromUserName': userName,
+        'fromUserProfilePic': userProfilePic,
+        'comment': commentText,
+        'postId': widget.post.id,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
+    }
+
+    _commentController.clear();
+    FocusScope.of(context).unfocus();
   }
 
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    bool isFavorited = widget.post.favorites.contains(_uid);
+    String formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(widget.post.timestamp);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // Header Sinematik dengan Sliver
-          SliverAppBar(
-            expandedHeight: 380.0,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: widget.post.imageUrl.isNotEmpty
-                  ? Image.memory(base64Decode(widget.post.imageUrl), fit: BoxFit.cover)
-                  : Container(color: Colors.grey[900]),
-            ),
-            actions: [
-              // Tombol Love/Favorit
-              Padding(
-                padding: const EdgeInsets.only(right: 12.0),
-                child: CircleAvatar(
-                  backgroundColor: Colors.black38,
-                  child: IconButton(
-                    icon: Icon(
-                      isFavorited ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorited ? Colors.redAccent : Colors.white,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // HEADER IMAGE
+              SliverAppBar(
+                expandedHeight: 400,
+                pinned: true,
+                stretch: true,
+                backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+                flexibleSpace: FlexibleSpaceBar(
+                  stretchModes: const [StretchMode.zoomBackground],
+                  background: widget.post.imageUrl.isNotEmpty
+                      ? Image.memory(base64Decode(widget.post.imageUrl), fit: BoxFit.cover)
+                      : Container(color: Colors.grey[300]),
+                ),
+                leading: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black26,
+                    child: const BackButton(color: Colors.white),
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black26,
+                      child: IconButton(
+                        icon: Icon(_isFavorited ? Icons.favorite : Icons.favorite_border,
+                                   color: _isFavorited ? Colors.redAccent : Colors.white),
+                        onPressed: () async {
+                          setState(() => _isFavorited = !_isFavorited);
+                          await FirebaseFirestore.instance.collection('posts').doc(widget.post.id).update({
+                            'favorites': _isFavorited 
+                                ? FieldValue.arrayUnion([_auth.currentUser!.uid])
+                                : FieldValue.arrayRemove([_auth.currentUser!.uid])
+                          });
+                        },
+                      ),
                     ),
-                    onPressed: () async {
-                      await _service.toggleFavorite(widget.post.id, _uid);
-                      setState(() {}); // Refresh UI lokal
-                    },
+                  ),
+                ],
+              ),
+
+              SliverToBoxAdapter(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF020617) : Colors.blue[50]?.withOpacity(0.5),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // BARIS 1: JUDUL & BADGE KONDISI (DI KANAN)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.post.title,
+                                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            _buildConditionBadge(widget.post.condition),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // BARIS 2: KATEGORI & SUB KATEGORI (SEBELAHAN)
+                        Row(
+                          children: [
+                            Text(
+                              widget.post.category.toUpperCase(),
+                              style: const TextStyle(color: Colors.lightBlueAccent, fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1),
+                            ),
+                            const Text("  •  ", style: TextStyle(color: Colors.grey)),
+                            Text(
+                              widget.post.subCategory,
+                              style: const TextStyle(color: Color.fromARGB(255, 0, 163, 22), fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // BARIS 3: WAKTU & TANGGAL
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 6),
+                            Text(
+                              formattedDate,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        
+                        const Divider(height: 50, thickness: 1),
+
+                        const Text("Deskripsi Kerusakan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.post.description,
+                          style: TextStyle(fontSize: 15, height: 1.6, color: isDark ? Colors.white70 : Colors.black87),
+                        ),
+
+                        const SizedBox(height: 35),
+                        _buildLocationCard(isDark),
+                        const SizedBox(height: 40),
+
+                        // DISKUSI HEADER
+                        const Row(
+                          children: [
+                            Icon(Icons.forum_rounded, color: Colors.lightBlueAccent, size: 24),
+                            const SizedBox(width: 10),
+                            Text("Diskusi Tim", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        _buildCommentList(widget.post.id, isDark),
+                        const SizedBox(height: 130),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Judul & Badge Kondisi
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(widget.post.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-                      ),
-                      _buildConditionBadge(widget.post.condition),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text("Oleh: ${widget.post.userName}", style: const TextStyle(color: Colors.grey)),
-                  
-                  const Divider(height: 40),
-
-                  // Informasi Kategori & Jenis (Grid Style)
-                  Row(
-                    children: [
-                      _buildInfoTile(Icons.category_outlined, "Kategori", widget.post.category),
-                      _buildInfoTile(Icons.settings_input_component, "Jenis", widget.post.subCategory),
-                    ],
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Deskripsi
-                  const Text("Deskripsi Kerusakan", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  Text(widget.post.description, style: const TextStyle(fontSize: 16, height: 1.6, color: Colors.blueGrey)),
-
-                  const SizedBox(height: 30),
-
-                  // Bagian Lokasi & Maps
-                  const Text("Lokasi Perangkat", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [if(!isDark) BoxShadow(color: Colors.black12, blurRadius: 10)],
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.redAccent),
-                            const SizedBox(width: 10),
-                            Text("Koordinat: ${widget.post.latitude}, ${widget.post.longitude}", 
-                                 style: const TextStyle(fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _launchMaps,
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text("LIHAT DI GOOGLE MAPS", style: TextStyle(fontWeight: FontWeight.bold)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.lightBlue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                ],
-              ),
-            ),
-          ),
+          _buildStickyInput(isDark),
         ],
       ),
     );
   }
 
   Widget _buildConditionBadge(String condition) {
-    Color color = condition == "Rusak" ? Colors.redAccent : Colors.greenAccent;
+    bool isBad = condition.toLowerCase().contains("rusak");
+    Color color = isBad ? Colors.redAccent : Colors.teal; // Fixed Teal Color
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color),
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.5), width: 1),
       ),
-      child: Text(condition, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+      child: Text(
+        condition.toUpperCase(),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 1),
+      ),
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value) {
-    return Expanded(
-      child: Row(
+  Widget _buildLocationCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.lightBlue, size: 22),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const Text("Titik Lokasi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 15),
+          Row(
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+              const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text("${widget.post.latitude}, ${widget.post.longitude}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
             ],
           ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _launchMaps,
+              icon: const Icon(Icons.map_rounded, color: Colors.white, size: 20),
+              label: const Text("BUKA DI GOOGLE MAPS", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.lightBlueAccent,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCommentList(String postId, bool isDark) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('posts').doc(postId).collection('comments').orderBy('timestamp', descending: false).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox();
+        final docs = snapshot.data!.docs;
+        return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: docs.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 15),
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final commentId = docs[index].id;
+            final bool isMyComment = data['userId'] == _auth.currentUser!.uid;
+            final String picBase64 = data['userProfilePic'] ?? "";
+
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.02),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.lightBlueAccent.withOpacity(0.2),
+                    backgroundImage: picBase64.isNotEmpty ? MemoryImage(base64Decode(picBase64)) : null,
+                    child: picBase64.isEmpty ? const Icon(Icons.person, color: Colors.lightBlueAccent, size: 18) : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(data['userName'] ?? "User", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.lightBlueAccent)),
+                        const SizedBox(height: 4),
+                        Text(data['comment'] ?? "", style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87)),
+                      ],
+                    ),
+                  ),
+                  if (isMyComment)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                      onPressed: () => _confirmDeleteComment(postId, commentId),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteComment(String postId, String commentId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Hapus Komentar?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+          TextButton(
+            onPressed: () async {
+              await _authService.deleteComment(postId, commentId);
+              if (mounted) Navigator.pop(context);
+            }, 
+            child: const Text("Hapus", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStickyInput(bool isDark) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        padding: EdgeInsets.only(left: 20, right: 20, bottom: MediaQuery.of(context).padding.bottom + 10, top: 15),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A).withOpacity(0.95) : Colors.white.withOpacity(0.95),
+          border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black12)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _commentController,
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Berikan saran...",
+                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF1E293B) : Colors.grey[100],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: _sendComment,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(color: Colors.lightBlueAccent, shape: BoxShape.circle),
+                child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

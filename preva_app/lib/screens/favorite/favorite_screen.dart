@@ -19,18 +19,17 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Favorit Saya")),
+      appBar: AppBar(title: const Text("Laporan Favorit")),
       body: StreamBuilder<List<PostModel>>(
         stream: _service.getPosts(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           
+          // Filter hanya yang ada di favorit user
           final favPosts = snapshot.data?.where((p) => p.favorites.contains(_uid)).toList() ?? [];
 
           if (favPosts.isEmpty) {
-            return const Center(
-              child: Text("Belum ada favorit.", style: TextStyle(fontSize: 16)),
-            );
+            return const Center(child: Text("Belum ada favorit."));
           }
 
           return ListView.builder(
@@ -41,8 +40,12 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
               return PostCard(
                 post: post,
                 isAdmin: false, 
-                isOwner: post.userId == _uid,
-                onDelete: () => _service.deletePost(post.id),
+                isOwner: false,
+                isFavoritePage: true, // AKTIFKAN MODE FAVORIT
+                onDelete: () async {
+                  // FIX: Hanya hapus dari favorit, bukan hapus dokumennya!
+                  await _service.toggleFavorite(post.id, _uid);
+                },
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailPostScreen(post: post))),
               );
             },

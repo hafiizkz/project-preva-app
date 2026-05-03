@@ -5,15 +5,29 @@ class LocationService {
     bool serviceEnabled;
     LocationPermission permission;
 
+    // 1. Cek apakah layanan lokasi aktif
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return Future.error('GPS tidak aktif.');
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return Future.error('Izin lokasi ditolak.');
+    if (!serviceEnabled) {
+      return Future.error('Layanan lokasi (GPS) dimatikan.');
     }
 
-    return await Geolocator.getCurrentPosition();
+    // 2. Cek status izin
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      // Minta izin ke user
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Izin lokasi ditolak.');
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Izin lokasi ditolak permanen, silakan cek pengaturan HP.');
+    }
+
+    // 3. Ambil posisi presisi tinggi
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 }

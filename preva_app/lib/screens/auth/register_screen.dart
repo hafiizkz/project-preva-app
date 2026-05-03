@@ -15,21 +15,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
+  bool _isLoading = false; // Tambahan state loading agar lebih pro
 
-  String _selectedRole = "karyawan"; // Default role
+  String _selectedRole = "karyawan"; 
 
   void _handleRegister() async {
-    final error = await _authService.signUp(
-      _emailController.text,
-      _passwordController.text,
-      _nameController.text,
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Email dan Password wajib diisi")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // Sekarang error akan menerima String? dari AuthService
+    final String? error = await _authService.signUp(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+      _nameController.text.trim(),
       _selectedRole,
     );
 
-    if (error == null) {
-      if (mounted) Navigator.pop(context); // Kembali ke login setelah sukses
-    } else {
-      if (mounted) {
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (error == null) {
+        // Sukses, kembali ke login
+        Navigator.pop(context);
+      } else {
+        // Gagal, tampilkan pesan error yang warna merah tadi
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
@@ -60,7 +74,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             CustomTextField(controller: _passwordController, label: "Password", icon: Icons.lock, isPassword: true),
             const SizedBox(height: 15),
             
-            // Dropdown Pemilihan Role
+            // Dropdown Role
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
@@ -80,7 +94,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 30),
-            CustomButton(text: "DAFTAR", onPressed: _handleRegister),
+            _isLoading 
+              ? const CircularProgressIndicator()
+              : CustomButton(text: "DAFTAR", onPressed: _handleRegister),
           ],
         ),
       ),

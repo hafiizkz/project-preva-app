@@ -3,7 +3,7 @@ import '../../services/auth_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_textfield.dart';
 import 'register_screen.dart';
-import '../dashboard/main_screen.dart'; // Nanti kita buat main_screen sebagai wrapper navbar
+import '../dashboard/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,10 +13,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // === VARIABEL INI YANG TADI TERHAPUS ===
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
 
+  // === FUNGSI INI JUGA TADI TERHAPUS ===
   void _handleLogin() async {
     final error = await _authService.signIn(_emailController.text, _passwordController.text);
 
@@ -46,25 +48,51 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.security_rounded, size: 100, color: Colors.lightBlue),
-              const SizedBox(height: 10),
-              const Text(
-                "PREVA APP",
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.lightBlue),
+              // === LOGO BARU PREVA APP ===
+              Image.asset(
+                'lib/img/logo.png',
+                width: 200, 
+                fit: BoxFit.contain,
               ),
-              const Text("Hardware & Software Maintenance", style: TextStyle(color: Colors.blueGrey)),
+              const SizedBox(height: 10),
+            
+              const Text(
+                "Hardware & Software Maintenance", 
+                style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 40),
-              CustomTextField(controller: _emailController, label: "Email", icon: Icons.email),
+              
+              // === INPUT TEXTFIELD ===
+              CustomTextField(
+                controller: _emailController, 
+                label: "Email", 
+                icon: Icons.email
+              ),
               const SizedBox(height: 15),
-              CustomTextField(controller: _passwordController, label: "Password", icon: Icons.lock, isPassword: true),
+              CustomTextField(
+                controller: _passwordController, 
+                label: "Password", 
+                icon: Icons.lock, 
+                isPassword: true
+              ),
               const SizedBox(height: 30),
-              CustomButton(text: "MASUK", onPressed: _handleLogin),
+              
+              // === TOMBOL MASUK ===
+              CustomButton(
+                text: "MASUK", 
+                onPressed: _handleLogin
+              ),
               const SizedBox(height: 20),
+              
+              // === TOMBOL DAFTAR ===
               TextButton(
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
                 },
-                child: const Text("Belum punya akun? Daftar di sini", style: TextStyle(color: Colors.lightBlue)),
+                child: const Text(
+                  "Belum punya akun? Daftar di sini", 
+                  style: TextStyle(color: Colors.lightBlue)
+                ),
               ),
             ],
           ),
