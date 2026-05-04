@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib untuk ambil profil
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/post_model.dart';
@@ -25,7 +26,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   String _category = "Hardware";
   String _subCategory = "RAM";
-  String _condition = "Baik"; // DEFAULT KONDISI
+  String _condition = "Baik"; 
   String _lat = "0.0";
   String _long = "0.0";
   String _imageBase64 = ""; 
@@ -75,7 +76,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
         padding: const EdgeInsets.all(25),
         child: Column(
           children: [
-            // 1. UPLOAD BOX (CINEMATIC PREVIEW)
+            // 1. UPLOAD BOX
             GestureDetector(
               onTap: _pickImage,
               child: Container(
@@ -136,7 +137,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 3. KONDISI BARANG (FITUR YANG DITUNGGU)
             _buildLabel("Kondisi Barang"),
             _buildDropdown(_condition, _conditions, isDark, (val) {
               setState(() => _condition = val.toString());
@@ -147,7 +147,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
             _buildTextField(_descController, isDark, maxLines: 4),
             const SizedBox(height: 30),
 
-            // 4. ACTION BUTTON
+            // 4. ACTION BUTTON DENGAN LOGIKA PROFIL OTOMATIS
             CustomButton(
               text: "KIRIM LAPORAN",
               onPressed: () async {
@@ -155,25 +155,59 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Foto dan Judul tidak boleh kosong!")));
                   return;
                 }
-                final user = FirebaseAuth.instance.currentUser!;
-                final newPost = PostModel(
-                  id: "", 
-                  userId: user.uid,
-                  userName: user.displayName ?? "User",
-                  userRole: "karyawan",
-                  title: _titleController.text,
-                  category: _category,
-                  subCategory: _subCategory,
-                  condition: _condition, // DISIMPAN KE DATABASE
-                  description: _descController.text,
-                  locationName: "Area Kerja",
-                  latitude: _lat, longitude: _long,
-                  imageUrl: _imageBase64,
-                  timestamp: DateTime.now(),
-                  favorites: [],
+
+                // Munculkan loading agar user tidak klik berkali-kali
+                showDialog(
+                  context: context, 
+                  barrierDismissible: false, 
+                  builder: (_) => const Center(child: CircularProgressIndicator())
                 );
-                await _service.createPost(newPost);
-                if (mounted) Navigator.pop(context);
+
+                try {
+                  final user = FirebaseAuth.instance.currentUser!;
+                  
+                  // Ambil data profil terbaru dari koleksi 'users'
+                  final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+                  
+                  String currentName = "User";
+                  String currentRole = "karyawan";
+                  String currentProfilePic = "";
+
+                  if (userDoc.exists) {
+                    currentName = userDoc.data()?['name'] ?? "User";
+                    currentRole = userDoc.data()?['role'] ?? "karyawan";
+                    currentProfilePic = userDoc.data()?['profilePic'] ?? "";
+                  }
+
+                  final newPost = PostModel(
+                    id: "", 
+                    userId: user.uid,
+                    userName: currentName,
+                    userRole: currentRole,
+                    userProfilePic: currentProfilePic,
+                    title: _titleController.text,
+                    category: _category,
+                    subCategory: _subCategory,
+                    condition: _condition,
+                    description: _descController.text,
+                    locationName: "Area Kerja",
+                    latitude: _lat, 
+                    longitude: _long,
+                    imageUrl: _imageBase64,
+                    timestamp: DateTime.now(),
+                    favorites: [],
+                  );
+
+                  await _service.createPost(newPost);
+                  
+                  if (mounted) {
+                    Navigator.pop(context); // Tutup loading
+                    Navigator.pop(context); // Kembali ke Dashboard
+                  }
+                } catch (e) {
+                  if (mounted) Navigator.pop(context); // Tutup loading jika error
+                  debugPrint("Upload Gagal: $e");
+                }
               },
             ),
           ],
@@ -182,6 +216,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
     );
   }
 
+  // WIDGET HELPERS
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(left: 5, bottom: 8),
     child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.lightBlue)),
@@ -189,6 +224,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
   Widget _buildTextField(TextEditingController controller, bool isDark, {int maxLines = 1}) => TextField(
     controller: controller, maxLines: maxLines,
+    style: TextStyle(color: isDark ? Colors.white : Colors.black),
     decoration: InputDecoration(
       filled: true, fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
@@ -196,7 +232,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
   );
 
   Widget _buildDropdown(String value, List<String> items, bool isDark, Function(Object?) onChanged) => DropdownButtonFormField(
-    initialValue: value, dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+    value: value, 
+    dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+    style: TextStyle(color: isDark ? Colors.white : Colors.black),
     decoration: InputDecoration(
       filled: true, fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),

@@ -34,7 +34,6 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
     }
   }
 
-  // FUNGSI: Kirim Komentar & Kirim Notifikasi
   void _sendComment() async {
     if (_commentController.text.trim().isEmpty) return;
     
@@ -54,14 +53,12 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    // 1. Tambah Komentar ke Postingan
     await FirebaseFirestore.instance
         .collection('posts')
         .doc(widget.post.id)
         .collection('comments')
         .add(commentData);
 
-    // 2. Kirim Notifikasi ke pemilik postingan (jika bukan diri sendiri)
     if (widget.post.userId != user.uid) {
       await FirebaseFirestore.instance.collection('notifications').add({
         'toUserId': widget.post.userId,
@@ -82,7 +79,8 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = Theme.of(context).brightness == Brightness.dark;
-    String formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(widget.post.timestamp);
+    String formattedDate = DateFormat('dd MMM yyyy').format(widget.post.timestamp);
+    String formattedTime = DateFormat('HH:mm').format(widget.post.timestamp);
 
     return Scaffold(
       body: Stack(
@@ -90,7 +88,6 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
           CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              // HEADER IMAGE
               SliverAppBar(
                 expandedHeight: 400,
                 pinned: true,
@@ -142,7 +139,48 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // BARIS 1: JUDUL & BADGE KONDISI (DI KANAN)
+                        // --- INFO PENGUNGGAH ---
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: Colors.lightBlueAccent.withOpacity(0.2),
+                              backgroundImage: widget.post.userProfilePic.isNotEmpty 
+                                  ? MemoryImage(base64Decode(widget.post.userProfilePic)) 
+                                  : null,
+                              child: widget.post.userProfilePic.isEmpty 
+                                  ? const Icon(Icons.person, color: Colors.lightBlueAccent) 
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.post.userName,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.access_time_rounded, size: 12, color: Colors.grey),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "$formattedDate  •  $formattedTime",
+                                        style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        // --- DIVIDER BARU (PEMBATAS PROFIL KE JUDUL) ---
+                        const Divider(height: 40, thickness: 1),
+
+                        // BARIS 1: JUDUL & BADGE KONDISI
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,7 +197,7 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // BARIS 2: KATEGORI & SUB KATEGORI (SEBELAHAN)
+                        // BARIS 2: KATEGORI & SUB KATEGORI
                         Row(
                           children: [
                             Text(
@@ -170,19 +208,6 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                             Text(
                               widget.post.subCategory,
                               style: const TextStyle(color: Color.fromARGB(255, 0, 163, 22), fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // BARIS 3: WAKTU & TANGGAL
-                        Row(
-                          children: [
-                            const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
-                            const SizedBox(width: 6),
-                            Text(
-                              formattedDate,
-                              style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
@@ -225,9 +250,11 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
     );
   }
 
+  // ... Widget helper lainnya tetap sama (_buildConditionBadge, _buildLocationCard, _buildCommentList, _buildStickyInput)
+  
   Widget _buildConditionBadge(String condition) {
     bool isBad = condition.toLowerCase().contains("rusak");
-    Color color = isBad ? Colors.redAccent : Colors.teal; // Fixed Teal Color
+    Color color = isBad ? Colors.redAccent : Colors.teal;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
@@ -351,7 +378,7 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
           TextButton(
             onPressed: () async {
-              await _authService.deleteComment(postId, commentId);
+              await FirebaseFirestore.instance.collection('posts').doc(postId).collection('comments').doc(commentId).delete();
               if (mounted) Navigator.pop(context);
             }, 
             child: const Text("Hapus", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))
