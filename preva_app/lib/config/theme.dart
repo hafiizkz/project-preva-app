@@ -8,9 +8,7 @@ class AppTheme {
       backgroundColor: Colors.lightBlue,
       elevation: 0,
     ),
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.lightBlue,
-    ),
+    colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightBlue),
   );
 
   static final darkTheme = ThemeData.dark().copyWith(

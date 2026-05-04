@@ -196,7 +196,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
   );
 
   Widget _buildDropdown(String value, List<String> items, bool isDark, Function(Object?) onChanged) => DropdownButtonFormField(
-    value: value, dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+    initialValue: value, dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
     decoration: InputDecoration(
       filled: true, fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),

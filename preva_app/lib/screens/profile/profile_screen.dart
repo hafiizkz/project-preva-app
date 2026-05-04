@@ -20,7 +20,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ImagePicker _picker = ImagePicker();
-  
+
   bool _isLoading = true;
   bool _isEditing = false;
   UserModel? _user;
@@ -37,7 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _fetchUserData() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(_auth.currentUser!.uid).get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .get();
       if (doc.exists && mounted) {
         setState(() {
           _user = UserModel.fromMap(doc.data()!);
@@ -51,23 +54,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // FIX: FUNGSI GANTI FOTO PROFIL (WEB & MOBILE COMPATIBLE)
   Future<void> _updateProfilePic() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 40);
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 40,
+    );
     if (image != null) {
-      // Ambil bytes agar aman di Web
       Uint8List imageBytes = await image.readAsBytes();
       String base64String = base64Encode(imageBytes);
 
-      await FirebaseFirestore.instance.collection('users').doc(_auth.currentUser!.uid).update({
-        'profilePic': base64String,
-      });
-      
-      // Refresh data setelah update
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .update({'profilePic': base64String});
+
       _fetchUserData();
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Foto profil diperbarui!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Foto profil diperbarui!")),
+        );
       }
     }
   }
@@ -80,22 +86,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: TextField(
           controller: _passController,
           obscureText: true,
-          decoration: const InputDecoration(hintText: "Password baru minimal 6 karakter"),
+          decoration: const InputDecoration(
+            hintText: "Password baru minimal 6 karakter",
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Batal"),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (_passController.text.length < 6) return;
               try {
-                await _auth.currentUser!.updatePassword(_passController.text.trim());
+                await _auth.currentUser!.updatePassword(
+                  _passController.text.trim(),
+                );
                 if (mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil diubah!")));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Berhasil diubah!")),
+                  );
                   _passController.clear();
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("Error: $e")));
               }
             },
             child: const Text("Simpan"),
@@ -107,33 +124,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Profil"),
         actions: [
-          // Tombol simpan muncul hanya saat editing
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.check, size: 28),
               onPressed: () async {
-                await FirebaseFirestore.instance.collection('users').doc(_auth.currentUser!.uid).update({
-                  'name': _nameController.text.trim(),
-                  'email': _emailController.text.trim(),
-                });
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(_auth.currentUser!.uid)
+                    .update({
+                      'name': _nameController.text.trim(),
+                      'email': _emailController.text.trim(),
+                    });
                 setState(() => _isEditing = false);
                 _fetchUserData();
               },
-            )
+            ),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
         child: Column(
           children: [
-            // 1. FOTO PROFIL
             Center(
               child: Stack(
                 children: [
@@ -144,10 +163,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: CircleAvatar(
                       radius: 60,
-                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      backgroundColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : Colors.white,
                       child: _user!.profilePic.isNotEmpty
-                          ? ClipOval(child: Image.memory(base64Decode(_user!.profilePic), fit: BoxFit.cover, width: 120, height: 120))
-                          : const Icon(Icons.person, size: 60, color: Colors.lightBlue),
+                          ? ClipOval(
+                              child: Image.memory(
+                                base64Decode(_user!.profilePic),
+                                fit: BoxFit.cover,
+                                width: 120,
+                                height: 120,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: Colors.lightBlue,
+                            ),
                     ),
                   ),
                   Positioned(
@@ -158,7 +190,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: const CircleAvatar(
                         backgroundColor: Colors.lightBlue,
                         radius: 18,
-                        child: Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                        child: Icon(
+                          Icons.camera_alt,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -167,32 +203,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 2. NAMA & TOMBOL EDIT DISAMPING
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(width: 40), // Spacer agar teks tetap di tengah
+                const SizedBox(width: 40),
                 _isEditing
                     ? Expanded(
                         child: TextField(
                           controller: _nameController,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                          decoration: const InputDecoration(border: InputBorder.none, hintText: "Nama"),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: "Nama",
+                          ),
                         ),
                       )
-                    : Text(_user!.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    : Text(
+                        _user!.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                 IconButton(
-                  icon: Icon(_isEditing ? null : Icons.edit_note, color: Colors.lightBlue),
+                  icon: Icon(
+                    _isEditing ? null : Icons.edit_note,
+                    color: Colors.lightBlue,
+                  ),
                   onPressed: () => setState(() => _isEditing = !_isEditing),
                 ),
               ],
             ),
-            Text(_user!.role.toUpperCase(), style: const TextStyle(color: Colors.lightBlue, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.2)),
-            
+            Text(
+              _user!.role.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.lightBlue,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                letterSpacing: 1.2,
+              ),
+            ),
+
             const SizedBox(height: 30),
-            
-            // 3. AREA INFO (EMAIL, PASSWORD, THEME)
+
             Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -200,17 +257,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  _buildRowTile(Icons.email_outlined, "Email", controller: _emailController, isEdit: _isEditing),
-                  const Divider(height: 1, indent: 50),
-                  _buildRowTile(Icons.lock_outline, "Ganti Password", onTap: _showChangePasswordDialog),
+                  _buildRowTile(
+                    Icons.email_outlined,
+                    "Email",
+                    controller: _emailController,
+                    isEdit: _isEditing,
+                    trailing: const SizedBox(), // ⬅️ panah dihapus
+                  ),
                   const Divider(height: 1, indent: 50),
                   _buildRowTile(
-                    Icons.dark_mode_outlined, 
-                    "Mode Gelap", 
+                    Icons.lock_outline,
+                    "Ganti Password",
+                    onTap: _showChangePasswordDialog,
+                  ),
+                  const Divider(height: 1, indent: 50),
+                  _buildRowTile(
+                    Icons.dark_mode_outlined,
+                    "Mode Gelap",
                     trailing: Switch(
                       value: isDark,
-                      activeColor: Colors.lightBlue,
-                      onChanged: (val) => PrevaApp.of(context).changeTheme(val ? ThemeMode.dark : ThemeMode.light),
+                      activeThumbColor: Colors.lightBlue,
+                      onChanged: (val) => PrevaApp.of(
+                        context,
+                      ).changeTheme(val ? ThemeMode.dark : ThemeMode.light),
                     ),
                   ),
                 ],
@@ -219,7 +288,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 40),
 
-            // 4. LOGOUT
             CustomButton(
               text: "LOGOUT",
               color: Colors.redAccent,
@@ -227,7 +295,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 await AuthService().signOut();
                 if (mounted) {
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
                     (route) => false,
                   );
                 }
@@ -239,16 +309,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // WIDGET TILE SUPAYA RAPIH
-  Widget _buildRowTile(IconData icon, String title, {TextEditingController? controller, bool isEdit = false, Widget? trailing, VoidCallback? onTap}) {
+  Widget _buildRowTile(
+    IconData icon,
+    String title, {
+    TextEditingController? controller,
+    bool isEdit = false,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       onTap: onTap,
       leading: Icon(icon, color: Colors.lightBlue),
-      title: isEdit && controller != null 
-          ? TextField(controller: controller, decoration: const InputDecoration(border: InputBorder.none, isDense: true)) 
+      title: isEdit && controller != null
+          ? TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            )
           : Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
       subtitle: !isEdit && controller != null ? Text(controller.text) : null,
-      trailing: trailing ?? const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      trailing:
+          trailing ??
+          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
     );
   }
 }

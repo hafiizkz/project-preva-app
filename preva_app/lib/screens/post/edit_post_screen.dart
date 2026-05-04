@@ -74,7 +74,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
             
             // Dropdown Kategori
             DropdownButtonFormField(
-              value: _category,
+              initialValue: _category,
               decoration: const InputDecoration(labelText: "Kategori Utama", filled: true, fillColor: Colors.white),
               items: ["Hardware", "Software"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) {
@@ -88,7 +88,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
 
             // Dropdown Sub-Kategori
             DropdownButtonFormField(
-              value: _subCategory,
+              initialValue: _subCategory,
               decoration: const InputDecoration(labelText: "Sub Kategori", filled: true, fillColor: Colors.white),
               items: (_category == "Hardware" ? _hwList : _swList).map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _subCategory = val.toString()),
@@ -96,7 +96,7 @@ class _EditPostScreenState extends State<EditPostScreen> {
             const SizedBox(height: 15),
 
             DropdownButtonFormField(
-              value: _condition,
+              initialValue: _condition,
               decoration: const InputDecoration(labelText: "Kondisi", filled: true, fillColor: Colors.white),
               items: ["Rusak", "Butuh Pembersihan", "Baik"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
               onChanged: (val) => setState(() => _condition = val.toString()),

@@ -204,7 +204,7 @@ class _DetailPostScreenState extends State<DetailPostScreen> {
                         const Row(
                           children: [
                             Icon(Icons.forum_rounded, color: Colors.lightBlueAccent, size: 24),
-                            const SizedBox(width: 10),
+                            SizedBox(width: 10),
                             Text("Diskusi Tim", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                           ],
                         ),
