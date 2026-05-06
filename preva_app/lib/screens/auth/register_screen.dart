@@ -15,7 +15,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-  bool _isLoading = false; // Tambahan state loading agar lebih pro
+  bool _isLoading = false; 
 
   String _selectedRole = "karyawan"; 
 
@@ -29,7 +29,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    // Sekarang error akan menerima String? dari AuthService
     final String? error = await _authService.signUp(
       _emailController.text.trim(),
       _passwordController.text.trim(),
@@ -40,10 +39,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (error == null) {
-        // Sukses, kembali ke login
         Navigator.pop(context);
       } else {
-        // Gagal, tampilkan pesan error yang warna merah tadi
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
@@ -53,20 +50,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Cek mode gelap
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.blue[50],
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      // 2. Background adaptif
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.blue[50],
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(25),
         child: Column(
           children: [
-            const Icon(Icons.person_add_rounded, size: 80, color: Colors.lightBlue),
+            Icon(Icons.person_add_rounded, size: 80, color: isDark ? Colors.lightBlueAccent : Colors.lightBlue),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               "Daftar Akun Preva",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.lightBlue),
+              style: TextStyle(
+                fontSize: 24, 
+                fontWeight: FontWeight.bold, 
+                color: isDark ? Colors.lightBlueAccent : Colors.lightBlue
+              ),
             ),
             const SizedBox(height: 30),
+            
             CustomTextField(controller: _nameController, label: "Nama Lengkap", icon: Icons.person),
             const SizedBox(height: 15),
             CustomTextField(controller: _emailController, label: "Email", icon: Icons.email),
@@ -74,17 +80,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
             CustomTextField(controller: _passwordController, label: "Password", icon: Icons.lock, isPassword: true),
             const SizedBox(height: 15),
             
-            // Dropdown Role
+            // Dropdown Role Adaptif
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                // 3. Warna box dropdown: Slate gelap jika Dark Mode
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                border: isDark ? Border.all(color: Colors.blueGrey.withOpacity(0.3)) : null,
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedRole,
                   isExpanded: true,
+                  // 4. Warna popup menu dropdown
+                  dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                   items: const [
                     DropdownMenuItem(value: "admin", child: Text("Admin")),
                     DropdownMenuItem(value: "karyawan", child: Text("Karyawan")),
@@ -94,8 +105,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 30),
+            
             _isLoading 
-              ? const CircularProgressIndicator()
+              ? const CircularProgressIndicator(color: Colors.lightBlueAccent)
               : CustomButton(text: "DAFTAR", onPressed: _handleRegister),
           ],
         ),

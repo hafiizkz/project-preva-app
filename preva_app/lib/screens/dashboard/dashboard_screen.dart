@@ -23,6 +23,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  
+  // === VARIABEL FILTER BARU ===
+  String _selectedCategory = "Semua";
+  final List<String> _categories = ["Semua", "Hardware", "Software"];
 
   String _name = "Memuat...";
   String _role = "User";
@@ -56,10 +60,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // GANTI TULISAN DENGAN LOGO DI SINI
         title: Image.asset(
           'lib/img/logo2.png',
-          height: 40, // Tinggi disesuaikan agar pas di bar atas
+          height: 40,
           fit: BoxFit.contain,
         ),
         actions: [
@@ -98,33 +101,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: Column(
         children: [
+          // === SEARCH BAR + FILTER BUTTON ===
           Padding(
             padding: const EdgeInsets.all(15),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
-              decoration: InputDecoration(
-                hintText: "Cari laporan maintenance...",
-                prefixIcon: const Icon(Icons.search, color: Colors.lightBlueAccent),
-                filled: true,
-                fillColor: isDark ? Colors.white10 : Colors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: "Cari laporan...",
+                      prefixIcon: const Icon(Icons.search, color: Colors.lightBlueAccent),
+                      filled: true,
+                      fillColor: isDark ? Colors.white10 : Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+                const SizedBox(width: 10),
+                // TOMBOL FILTER KATEGORI
+                Container(
+                  decoration: BoxDecoration(
+                    color: _selectedCategory == "Semua" 
+                        ? (isDark ? Colors.white10 : Colors.white)
+                        : Colors.lightBlueAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.filter_list_rounded, 
+                      color: _selectedCategory == "Semua" ? Colors.grey : Colors.lightBlueAccent
+                    ),
+                    onSelected: (String value) {
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    },
+                    itemBuilder: (BuildContext context) {
+                      return _categories.map((String cat) {
+                        return PopupMenuItem<String>(
+                          value: cat,
+                          child: Text(cat, style: TextStyle(
+                            color: _selectedCategory == cat ? Colors.lightBlueAccent : null,
+                            fontWeight: _selectedCategory == cat ? FontWeight.bold : null,
+                          )),
+                        );
+                      }).toList();
+                    },
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
 
+          // LIST POSTINGAN
           Expanded(
             child: StreamBuilder<List<PostModel>>(
               stream: _service.getPosts(),
@@ -132,8 +171,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
                 if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("Belum ada laporan."));
 
+                // === LOGIKA FILTERING GANDA: Search + Kategori ===
                 final filteredPosts = snapshot.data!.where((post) {
-                  return post.title.toLowerCase().contains(_searchQuery);
+                  final matchesSearch = post.title.toLowerCase().contains(_searchQuery);
+                  final matchesCategory = _selectedCategory == "Semua" || post.category == _selectedCategory;
+                  return matchesSearch && matchesCategory;
                 }).toList();
 
                 if (filteredPosts.isEmpty) {

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data'; // Untuk handling bytes foto
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -110,9 +110,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _passController.clear();
                 }
               } catch (e) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text("Error: $e")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Error: $e")),
+                );
               }
             },
             child: const Text("Simpan"),
@@ -134,15 +134,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           if (_isEditing)
             IconButton(
-              icon: const Icon(Icons.check, size: 28),
+              icon: const Icon(Icons.check, size: 28, color: Colors.lightBlue),
               onPressed: () async {
                 await FirebaseFirestore.instance
                     .collection('users')
                     .doc(_auth.currentUser!.uid)
                     .update({
-                      'name': _nameController.text.trim(),
-                      'email': _emailController.text.trim(),
-                    });
+                  'name': _nameController.text.trim(),
+                  'email': _emailController.text.trim(),
+                });
                 setState(() => _isEditing = false);
                 _fetchUserData();
               },
@@ -163,9 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: CircleAvatar(
                       radius: 60,
-                      backgroundColor: isDark
-                          ? const Color(0xFF1E293B)
-                          : Colors.white,
+                      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
                       child: _user!.profilePic.isNotEmpty
                           ? ClipOval(
                               child: Image.memory(
@@ -175,11 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 height: 120,
                               ),
                             )
-                          : const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.lightBlue,
-                            ),
+                          : const Icon(Icons.person, size: 60, color: Colors.lightBlue),
                     ),
                   ),
                   Positioned(
@@ -190,11 +184,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: const CircleAvatar(
                         backgroundColor: Colors.lightBlue,
                         radius: 18,
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 16,
-                          color: Colors.white,
-                        ),
+                        child: Icon(Icons.camera_alt, size: 16, color: Colors.white),
                       ),
                     ),
                   ),
@@ -203,41 +193,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(width: 40),
-                _isEditing
-                    ? Expanded(
-                        child: TextField(
-                          controller: _nameController,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: "Nama",
-                          ),
-                        ),
-                      )
-                    : Text(
-                        _user!.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                IconButton(
-                  icon: Icon(
-                    _isEditing ? null : Icons.edit_note,
-                    color: Colors.lightBlue,
+            // Nama (Tanpa pensil di sini)
+            _isEditing
+                ? TextField(
+                    controller: _nameController,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    decoration: const InputDecoration(border: InputBorder.none, hintText: "Nama"),
+                  )
+                : Text(
+                    _user!.name,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  onPressed: () => setState(() => _isEditing = !_isEditing),
-                ),
-              ],
-            ),
+            
             Text(
               _user!.role.toUpperCase(),
               style: const TextStyle(
@@ -257,29 +225,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  _buildRowTile(
+                  // Email Satu Baris + Pensil Pindah Ke Sini
+                  _buildInlineRowTile(
                     Icons.email_outlined,
                     "Email",
                     controller: _emailController,
                     isEdit: _isEditing,
-                    trailing: const SizedBox(), // ⬅️ panah dihapus
+                    // Ikon pensil muncul di sini jika tidak sedang mengedit
+                    trailing: _isEditing 
+                        ? null 
+                        : IconButton(
+                            icon: const Icon(Icons.edit_note, color: Colors.lightBlue),
+                            onPressed: () => setState(() => _isEditing = true),
+                          ),
                   ),
                   const Divider(height: 1, indent: 50),
-                  _buildRowTile(
+                  _buildInlineRowTile(
                     Icons.lock_outline,
                     "Ganti Password",
                     onTap: _showChangePasswordDialog,
                   ),
                   const Divider(height: 1, indent: 50),
-                  _buildRowTile(
+                  _buildInlineRowTile(
                     Icons.dark_mode_outlined,
                     "Mode Gelap",
                     trailing: Switch(
                       value: isDark,
                       activeThumbColor: Colors.lightBlue,
-                      onChanged: (val) => PrevaApp.of(
-                        context,
-                      ).changeTheme(val ? ThemeMode.dark : ThemeMode.light),
+                      onChanged: (val) => PrevaApp.of(context).changeTheme(val ? ThemeMode.dark : ThemeMode.light),
                     ),
                   ),
                 ],
@@ -295,9 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 await AuthService().signOut();
                 if (mounted) {
                   Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const LoginScreen(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
                     (route) => false,
                   );
                 }
@@ -309,7 +280,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildRowTile(
+  // Helper Widget baru untuk tampilan satu baris (Inline)
+  Widget _buildInlineRowTile(
     IconData icon,
     String title, {
     TextEditingController? controller,
@@ -320,19 +292,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return ListTile(
       onTap: onTap,
       leading: Icon(icon, color: Colors.lightBlue),
-      title: isEdit && controller != null
-          ? TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            )
-          : Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: !isEdit && controller != null ? Text(controller.text) : null,
-      trailing:
-          trailing ??
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+      title: Row(
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
+          if (controller != null) ...[
+            const Text(" : ", style: TextStyle(fontWeight: FontWeight.w500)),
+            Expanded(
+              child: isEdit
+                  ? TextField(
+                      controller: controller,
+                      style: const TextStyle(fontSize: 15),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    )
+                  : Text(
+                      controller.text,
+                      style: const TextStyle(fontSize: 15, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+            ),
+          ]
+        ],
+      ),
+      trailing: trailing,
     );
   }
 }

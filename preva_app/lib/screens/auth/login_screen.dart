@@ -13,12 +13,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // === VARIABEL INI YANG TADI TERHAPUS ===
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
 
-  // === FUNGSI INI JUGA TADI TERHAPUS ===
   void _handleLogin() async {
     final error = await _authService.signIn(_emailController.text, _passwordController.text);
 
@@ -40,29 +38,40 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Cek apakah sedang dalam mode gelap
+    bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.blue[50],
+      // 2. Background dinamis: Biru muda jika terang, Slate gelap jika Dark Mode
+      backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.blue[50],
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(25),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // === LOGO BARU PREVA APP ===
+              // LOGO PREVA APP
               Image.asset(
                 'lib/img/logo.png',
                 width: 200, 
                 fit: BoxFit.contain,
+                // Opsional: Jika logo kamu warna gelap, bisa pakai colorFilter agar putih saat Dark Mode
+                color: isDark ? Colors.white : null, 
               ),
               const SizedBox(height: 10),
             
-              const Text(
+              Text(
                 "Hardware & Software Maintenance", 
-                style: TextStyle(color: Colors.blueGrey, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  // 3. Warna teks deskripsi yang adaptif
+                  color: isDark ? Colors.blueGrey[300] : Colors.blueGrey, 
+                  fontWeight: FontWeight.w500
+                ),
               ),
               const SizedBox(height: 40),
               
-              // === INPUT TEXTFIELD ===
+              // INPUT TEXTFIELD
+              // (Pastikan CustomTextField kamu sudah menggunakan Theme.of(context).cardColor atau sejenisnya)
               CustomTextField(
                 controller: _emailController, 
                 label: "Email", 
@@ -77,21 +86,25 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
               
-              // === TOMBOL MASUK ===
+              // TOMBOL MASUK
               CustomButton(
                 text: "MASUK", 
                 onPressed: _handleLogin
               ),
               const SizedBox(height: 20),
               
-              // === TOMBOL DAFTAR ===
+              // TOMBOL DAFTAR
               TextButton(
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
                 },
-                child: const Text(
+                child: Text(
                   "Belum punya akun? Daftar di sini", 
-                  style: TextStyle(color: Colors.lightBlue)
+                  style: TextStyle(
+                    // 4. Warna link yang lebih cerah di mode gelap agar kontras
+                    color: isDark ? Colors.lightBlueAccent : Colors.lightBlue,
+                    fontWeight: FontWeight.bold
+                  ),
                 ),
               ),
             ],
