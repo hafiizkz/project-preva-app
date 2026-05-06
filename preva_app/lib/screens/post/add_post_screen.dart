@@ -32,7 +32,7 @@ class _AddPostScreenState extends State<AddPostScreen> {
   String _imageBase64 = ""; 
   Uint8List? _webImage;
 
-  final List<String> _hwList = ["RAM", "SSD", "Monitor", "Mouse", "VGA"];
+  final List<String> _hwList = ["RAM", "SSD", "Monitor", "Mouse", "VGA", "Printer", "Scanner", "Lainnya"];
   final List<String> _swList = ["Microsoft Office", "Sistem Operasi", "Lisensi Lainnya"];
   final List<String> _conditions = ["Baik", "Rusak Ringan", "Rusak Berat", "Perlu Maintenance"];
 
