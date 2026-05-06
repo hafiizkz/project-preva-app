@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Wajib untuk ambil profil
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/post_model.dart';
@@ -54,8 +54,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 40);
+  // --- FUNGSI AMBIL GAMBAR (MODIFIED) ---
+  Future<void> _processImage(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source, imageQuality: 40);
     if (image != null) {
       Uint8List bytes = await image.readAsBytes();
       setState(() {
@@ -63,6 +64,37 @@ class _AddPostScreenState extends State<AddPostScreen> {
         _imageBase64 = base64Encode(bytes);
       });
     }
+  }
+
+  void _pickImage() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.lightBlue),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                _processImage(ImageSource.gallery);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.lightBlue),
+              title: const Text('Ambil dari Kamera'),
+              onTap: () {
+                _processImage(ImageSource.camera);
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -100,7 +132,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
             ),
             const SizedBox(height: 25),
 
-            // 2. INPUT DATA
             _buildLabel("Judul Laporan"),
             _buildTextField(_titleController, isDark),
             const SizedBox(height: 20),
@@ -147,7 +178,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
             _buildTextField(_descController, isDark, maxLines: 4),
             const SizedBox(height: 30),
 
-            // 4. ACTION BUTTON DENGAN LOGIKA PROFIL OTOMATIS
             CustomButton(
               text: "KIRIM LAPORAN",
               onPressed: () async {
@@ -156,7 +186,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   return;
                 }
 
-                // Munculkan loading agar user tidak klik berkali-kali
                 showDialog(
                   context: context, 
                   barrierDismissible: false, 
@@ -165,8 +194,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
                 try {
                   final user = FirebaseAuth.instance.currentUser!;
-                  
-                  // Ambil data profil terbaru dari koleksi 'users'
                   final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
                   
                   String currentName = "User";
@@ -201,11 +228,11 @@ class _AddPostScreenState extends State<AddPostScreen> {
                   await _service.createPost(newPost);
                   
                   if (mounted) {
-                    Navigator.pop(context); // Tutup loading
-                    Navigator.pop(context); // Kembali ke Dashboard
+                    Navigator.pop(context); 
+                    Navigator.pop(context); 
                   }
                 } catch (e) {
-                  if (mounted) Navigator.pop(context); // Tutup loading jika error
+                  if (mounted) Navigator.pop(context); 
                   debugPrint("Upload Gagal: $e");
                 }
               },
@@ -216,7 +243,6 @@ class _AddPostScreenState extends State<AddPostScreen> {
     );
   }
 
-  // WIDGET HELPERS
   Widget _buildLabel(String text) => Padding(
     padding: const EdgeInsets.only(left: 5, bottom: 8),
     child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.lightBlue)),
